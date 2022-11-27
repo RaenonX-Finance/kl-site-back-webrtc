@@ -25,6 +25,25 @@ def print_log(msg: str):
     print(f"{dt} [{threading.get_ident():>6}]: {msg}")
 
 
+def send_data_to_channels(msg: str):
+    global chs
+
+    print_log(f"Sending `{msg}` to {len(chs)} channels")
+
+    closed_ch = set()
+
+    for channel in chs:
+        if channel.readyState != "open":
+            print_log(f"Channel ({channel.id}) closed (state: {channel.readyState})")
+            channel.close()
+            closed_ch.add(channel)
+            continue
+
+        channel.send(msg)
+
+    chs -= closed_ch
+
+
 class SandboxClient(TouchanceApiClient):
     def __init__(self):
         super().__init__()
@@ -32,24 +51,20 @@ class SandboxClient(TouchanceApiClient):
         threading.Thread(target=self._fake_realtime_data_event).start()
 
     def _fake_realtime_data_event(self):
+        global chs
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
         while True:
             for idx in range(1, 100):
                 for idx_enum, symbol in enumerate(SOURCE_SYMBOLS, start=1):
-                    msg = f"{symbol.security} {idx * idx_enum}"
-
-                    print_log(f"Sending `{msg}` to {len(chs)} channels")
-
-                    for channel in chs:
-                        channel.send(msg)
+                    send_data_to_channels(f"{symbol.security} {idx * idx_enum}")
 
                     time.sleep(0.1)
 
     def on_received_realtime_data(self, data: RealtimeData) -> None:
-        for channel in chs:
-            channel.send(f"{data.security} {data.close}")
+        send_data_to_channels(f"{data.security} {data.close}")
 
     def on_received_history_data(self, data: HistoryData) -> None:
         pass
