@@ -1,7 +1,10 @@
 import asyncio
 import json
 import os
+import threading
+import time
 import uuid
+from datetime import datetime
 
 import aiohttp_cors
 from aiohttp import web
@@ -17,7 +20,33 @@ pcs = set()
 chs: set[RTCDataChannel] = set()
 
 
+def print_log(msg: str):
+    dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    print(f"{dt} [{threading.get_ident():>6}]: {msg}")
+
+
 class SandboxClient(TouchanceApiClient):
+    def __init__(self):
+        super().__init__()
+
+        threading.Thread(target=self._fake_realtime_data_event).start()
+
+    def _fake_realtime_data_event(self):
+        while True:
+            try:
+                for idx in range(100):
+                    for idx_enum, symbol in enumerate(SOURCE_SYMBOLS):
+                        msg = f"{symbol.security} {idx * idx_enum}"
+
+                        print_log(f"Sending `{msg}` to {len(chs)} channels")
+
+                        for channel in chs:
+                            channel.send(msg)
+
+                        time.sleep(0.1)
+            except Exception:
+                pass
+
     def on_received_realtime_data(self, data: RealtimeData) -> None:
         for channel in chs:
             channel.send(f"{data.security} {data.close}")
@@ -44,13 +73,16 @@ async def offer(request):
     pcs.add(pc)
 
     def log_info(msg):
-        print(pc_id + " " + msg)
+        print_log(pc_id + " " + msg)
 
     log_info(f"Created for {request.remote}")
 
     @pc.on("datachannel")
     def on_datachannel(channel: RTCDataChannel):
+        log_info(f"Channel created: {channel.label} ({channel.id})")
+
         if channel.label == "marketPx":
+            log_info(f"Add market px channel ({channel.id})")
             chs.add(channel)
 
         # FIXME: Currently not in-use
