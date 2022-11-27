@@ -5,6 +5,7 @@ import threading
 import time
 import uuid
 from datetime import datetime
+from typing import Any, Callable, Coroutine, ParamSpec
 
 import aiohttp_cors
 from aiohttp import web
@@ -20,12 +21,24 @@ pcs = set()
 chs: set[RTCDataChannel] = set()
 
 
+P = ParamSpec("P")
+
+Func = Callable[P, Coroutine[Any, Any, None]]
+
+
+def execute_async_function(async_func: Func, *args: P.args, **kwargs: P.kwargs):
+    async def async_func_wrapper():
+        await async_func(*args, **kwargs)
+
+    asyncio.run(async_func_wrapper())
+
+
 def print_log(msg: str):
     dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     print(f"{dt} [{threading.get_ident():>6}]: {msg}")
 
 
-def send_data_to_channels(msg: str):
+async def send_data_to_channels(msg: str):
     global chs
 
     print_log(f"Sending `{msg}` to {len(chs)} channels")
@@ -41,6 +54,10 @@ def send_data_to_channels(msg: str):
 
         channel.send(msg)
 
+        # https://github.com/aiortc/aiortc/issues/547
+        await channel.transport._data_channel_flush()
+        await channel.transport._transmit()
+
     chs -= closed_ch
 
 
@@ -53,18 +70,15 @@ class SandboxClient(TouchanceApiClient):
     def _fake_realtime_data_event(self):
         global chs
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
         while True:
             for idx in range(1, 100):
                 for idx_enum, symbol in enumerate(SOURCE_SYMBOLS, start=1):
-                    send_data_to_channels(f"{symbol.security} {idx * idx_enum}")
+                    execute_async_function(send_data_to_channels, f"{symbol.security} {idx * idx_enum}")
 
                     time.sleep(0.1)
 
     def on_received_realtime_data(self, data: RealtimeData) -> None:
-        send_data_to_channels(f"{data.security} {data.close}")
+        execute_async_function(send_data_to_channels, f"{data.security} {data.close}")
 
     def on_received_history_data(self, data: HistoryData) -> None:
         pass
@@ -100,11 +114,9 @@ async def offer(request):
             log_info(f"Add market px channel ({channel.id})")
             chs.add(channel)
 
-        # FIXME: Currently not in-use
         @channel.on("message")
         def on_message(message):
-            if isinstance(message, str) and message.startswith("ping"):
-                channel.send("pong" + message[4:])
+            print_log(f"Received message from channel ({channel.id}) - {message}")
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
@@ -126,9 +138,10 @@ async def offer(request):
 
     return web.Response(
         content_type="application/json",
-        text=json.dumps(
-            {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
-        ),
+        text=json.dumps({
+            "sdp": pc.localDescription.sdp,
+            "type": pc.localDescription.type
+        }),
     )
 
 
