@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 import threading
-import time
 import uuid
 from datetime import datetime
 from typing import Any, Callable, Coroutine, ParamSpec
@@ -66,18 +65,6 @@ async def send_data_to_channels(msg: str):
 class SandboxClient(TouchanceApiClient):
     def __init__(self):
         super().__init__()
-
-        threading.Thread(target=self._fake_realtime_data_event).start()
-
-    def _fake_realtime_data_event(self):
-        global chs
-
-        while True:
-            for idx in range(1, 100):
-                for idx_enum, symbol in enumerate(SOURCE_SYMBOLS, start=1):
-                    execute_async_function(send_data_to_channels, f"{symbol.security} {idx * idx_enum}")
-
-                    time.sleep(0.1)
 
     def on_received_realtime_data(self, data: RealtimeData) -> None:
         execute_async_function(send_data_to_channels, f"{data.security} {data.close}")
