@@ -32,20 +32,20 @@ class SandboxClient(TouchanceApiClient):
         threading.Thread(target=self._fake_realtime_data_event).start()
 
     def _fake_realtime_data_event(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
         while True:
-            try:
-                for idx in range(100):
-                    for idx_enum, symbol in enumerate(SOURCE_SYMBOLS):
-                        msg = f"{symbol.security} {idx * idx_enum}"
+            for idx in range(1, 100):
+                for idx_enum, symbol in enumerate(SOURCE_SYMBOLS, start=1):
+                    msg = f"{symbol.security} {idx * idx_enum}"
 
-                        print_log(f"Sending `{msg}` to {len(chs)} channels")
+                    print_log(f"Sending `{msg}` to {len(chs)} channels")
 
-                        for channel in chs:
-                            channel.send(msg)
+                    for channel in chs:
+                        channel.send(msg)
 
-                        time.sleep(0.1)
-            except Exception:
-                pass
+                    time.sleep(0.1)
 
     def on_received_realtime_data(self, data: RealtimeData) -> None:
         for channel in chs:
@@ -75,7 +75,7 @@ async def offer(request):
     def log_info(msg):
         print_log(pc_id + " " + msg)
 
-    log_info(f"Created for {request.remote}")
+    log_info(f"Peer connection created for {request.remote}")
 
     @pc.on("datachannel")
     def on_datachannel(channel: RTCDataChannel):
