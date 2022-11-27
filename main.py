@@ -23,7 +23,7 @@ class SandboxClient(TouchanceApiClient):
             return
 
         for channel in chs:
-            channel.send(str(data.close))
+            channel.send(f"{data.security} {data.close}")
 
     def on_received_history_data(self, data: HistoryData) -> None:
         pass
@@ -56,6 +56,7 @@ async def offer(request):
         if channel.label == "marketPx":
             chs.add(channel)
 
+        # FIXME: Currently not in-use
         @channel.on("message")
         def on_message(message):
             if isinstance(message, str) and message.startswith("ping"):
