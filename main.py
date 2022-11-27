@@ -100,8 +100,6 @@ if __name__ == "__main__":
         client.subscribe_realtime(symbol)
 
     app = web.Application()
-    app.on_shutdown.append(on_shutdown)
-    app.router.add_post("/offer", offer)
 
     cors = aiohttp_cors.setup(app, defaults={
         "*": aiohttp_cors.ResourceOptions(
@@ -110,9 +108,8 @@ if __name__ == "__main__":
             allow_headers="*",
         )
     })
+    cors.add(app.router.add_post("/offer", offer))
 
-    # Configure CORS on all routes.
-    for route in list(app.router.routes()):
-        cors.add(route)
+    app.on_shutdown.append(on_shutdown)
 
     web.run_app(app, access_log=None, host="localhost", port=8182)
