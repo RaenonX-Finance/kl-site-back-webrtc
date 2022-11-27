@@ -115,4 +115,4 @@ if __name__ == "__main__":
     for route in list(app.router.routes()):
         cors.add(route)
 
-    web.run_app(app, access_log=None, host="localhost", port=8080)
+    web.run_app(app, access_log=None, host="localhost", port=8182)
