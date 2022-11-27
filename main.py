@@ -19,9 +19,6 @@ chs: set[RTCDataChannel] = set()
 
 class SandboxClient(TouchanceApiClient):
     def on_received_realtime_data(self, data: RealtimeData) -> None:
-        if data.security != "NQ":
-            return
-
         for channel in chs:
             channel.send(f"{data.security} {data.close}")
 
