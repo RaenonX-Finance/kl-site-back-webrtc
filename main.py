@@ -25,6 +25,8 @@ P = ParamSpec("P")
 
 Func = Callable[P, Coroutine[Any, Any, None]]
 
+asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 
 def execute_async_function(async_func: Func, *args: P.args, **kwargs: P.kwargs):
     async def async_func_wrapper():
