@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 import threading
 import uuid
 from datetime import datetime
@@ -14,7 +13,6 @@ from tcoreapi_mq.client import TouchanceApiClient
 from tcoreapi_mq.message import HistoryData, RealtimeData, SystemTimeData
 from tcoreapi_mq.model import SOURCE_SYMBOLS
 
-ROOT = os.path.dirname(__file__)
 
 pcs = set()
 chs: set[RTCDataChannel] = set()
@@ -67,7 +65,7 @@ class SandboxClient(TouchanceApiClient):
         super().__init__()
 
     def on_received_realtime_data(self, data: RealtimeData) -> None:
-        execute_async_function(send_data_to_channels, f"{data.security} {data.close}")
+        execute_async_function(send_data_to_channels, f"{data.security} {data.last_px}")
 
     def on_received_history_data(self, data: HistoryData) -> None:
         pass
